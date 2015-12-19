@@ -1,0 +1,30 @@
+DROP KEYSPACE IF EXISTS ml_test;
+
+CREATE KEYSPACE IF NOT EXISTS ml_test
+WITH REPLICATION = {'class':'SimpleStrategy','replication_factor':'1'}
+AND DURABLE_WRITES = true;
+
+DROP TABLE IF EXISTS ml_test.container;
+
+DROP TABLE IF EXISTS ml_test.container_vectors;
+
+CREATE TABLE IF NOT EXISTS ml_test.container
+(container_uuid    timeuuid,
+ mail_object_type  text,
+ mail_class        text,
+ mail_owner        int,
+ sortation_level   int,
+ entry_zip         int,
+ destination_zip   int,
+ entry_wndw        int,
+ scan_ops          text,
+ scan_wndw         text,
+ scan_facs         text,
+ day_lag           text,
+ PRIMARY KEY (container_uuid));
+
+ CREATE TABLE IF NOT EXISTS ml_test.container_vectors
+ (column      text,
+  value_data  text,
+  index_data  double,
+ PRIMARY KEY (column,value_data));
