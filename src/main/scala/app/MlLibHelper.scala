@@ -1,29 +1,13 @@
 package app
 
 import dao.{ContainerVectorsDao, ContainerDataDao}
+import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.sql.DataFrame
-import utility.classes.CreateSparkContext
+import utility.classes.{PropertiesHelper, CreateSparkContext}
 
-class MlLibHelper {
+class MlLibHelper extends PropertiesHelper {
 
-  (CreateSparkContext.CreateContext)
-
-  val index = "Index"
-
-  val scanColumn = "scan_ops"
-  val scanLabel = "label"
-  val scanEncodedColumn = "scan_ops_encode"
-  val scanLabelIndex = scanLabel+index;
-
-  val scanDataEncodedColumn = "features"
-  val scanDataColumn = "data_values"
-  val scanDataLabel = "data_label"
-  val scanEncodedIndex = scanDataEncodedColumn+index
-
-  val prediction = "prediction"
-  val precision = "precision"
-
-  val impurity = "gini"
+  CreateSparkContext.CreateContext
 
   private val csc = CreateSparkContext.getCSContext
   private val cdd = new ContainerDataDao(csc)
@@ -33,15 +17,33 @@ class MlLibHelper {
     cvd.insert(column,df)
   }
 
-  def getAndSaveData () = {
+  private def createVector (df : DataFrame, column:String) : DataFrame = {
+    val (localLabel, localVector) = getLabelAndVector(column)
+    OneHotEncoder.encode(df,column,localLabel,localVector)
+  }
+
+  private def processVectors (df : DataFrame) : DataFrame = {
+    var vectorDf = df
+    columns.map(x=> vectorDf = createVector(vectorDf,x))
+    val assembler = new VectorAssembler()
+      .setInputCols(columnsVectors)
+      .setOutputCol(predictionFeatures)
+    assembler.transform(vectorDf)
+  }
+
+  protected def getAndSaveData () = {
     val contr = cdd.getContainerInfo.cache
-    val scanOpsEncoded = OneHotEncoder.encode(contr,scanColumn,scanLabel,scanEncodedColumn)
-    val columnsEncoded = OneHotEncoder.encode(scanOpsEncoded,scanDataColumn,scanDataLabel,scanDataEncodedColumn)
-    val distinctOpsValues = columnsEncoded.select(scanColumn,scanLabel).distinct()
-    val distinctDataValues = columnsEncoded.select(scanDataColumn,scanDataLabel).distinct()
-    insertVectors(scanColumn,distinctOpsValues)
-    insertVectors(scanDataColumn,distinctDataValues)
-    columnsEncoded.select(scanColumn,scanLabel,scanDataColumn,scanDataEncodedColumn)
+
+    //Add all columns used for prediction to the vector and create a label for the prediction column
+    val columnsEncoded = createVector(processVectors(contr),predictColumn)
+
+    //val distinctOpsValues = columnsEncoded.select(scanColumn,scanLabel).distinct()
+    //val distinctDataValues = columnsEncoded.select(scanDataColumn,scanDataLabel).distinct()
+    //insertVectors(scanColumn,distinctOpsValues)
+    //insertVectors(scanDataColumn,distinctDataV
+    columnsEncoded.select(predictionFeatures).foreach(println)
+
+    columnsEncoded
   }
 
 }
